@@ -1,0 +1,1297 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>三国棋·争霸</title>
+<style>
+  /* ===== 古风主题 ===== */
+  :root {
+    --bg-deep: #1a1410;
+    --bg-mid: #2a201a;
+    --bg-light: #3d2f24;
+    --gold: #d4a857;
+    --gold-bright: #f5d76e;
+    --red: #c0392b;
+    --red-deep: #8b1e15;
+    --blue: #2c5f7c;
+    --blue-deep: #1c3e52;
+    --green: #5fa85f;
+    --gray: #6b6357;
+    --text: #e8dcc4;
+    --text-dim: #a89986;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    height: 100%;
+    font-family: "Microsoft YaHei", "STKaiti", "KaiTi", serif;
+    background:
+      radial-gradient(ellipse at top, #2a1f17 0%, #120c08 100%);
+    color: var(--text);
+    user-select: none;
+    overflow: hidden;
+  }
+  body { display: flex; justify-content: center; align-items: center; padding: 12px; }
+
+  /* ===== 主容器 ===== */
+  #app {
+    width: 1280px;
+    max-width: 100%;
+    background: linear-gradient(180deg, #2a1f17 0%, #1a120c 100%);
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    padding: 16px;
+    box-shadow: 0 0 30px rgba(212, 168, 87, 0.25), inset 0 0 20px rgba(0,0,0,0.5);
+    position: relative;
+  }
+
+  /* ===== 标题栏 ===== */
+  header {
+    display: flex; justify-content: space-between; align-items: center;
+    padding-bottom: 10px; margin-bottom: 12px;
+    border-bottom: 1px solid rgba(212,168,87,0.3);
+  }
+  .title {
+    font-size: 28px; font-weight: bold;
+    color: var(--gold-bright);
+    letter-spacing: 8px;
+    text-shadow: 0 0 10px rgba(245,215,110,0.4);
+  }
+  .title .sub { font-size: 14px; color: var(--text-dim); margin-left: 8px; letter-spacing: 2px; }
+  .header-actions button {
+    background: var(--bg-light); color: var(--gold-bright);
+    border: 1px solid var(--gold); padding: 6px 14px;
+    margin-left: 6px; cursor: pointer; border-radius: 4px;
+    font-family: inherit; font-size: 14px;
+    transition: all 0.2s;
+  }
+  .header-actions button:hover { background: var(--gold); color: #1a120c; }
+
+  /* ===== 信息栏 ===== */
+  .info-bar {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(212,168,87,0.3);
+    border-radius: 4px; padding: 6px 12px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 16px;
+    font-size: 14px;
+  }
+  .info-bar.ai { border-color: rgba(192,57,43,0.4); }
+  .info-bar.player { border-color: rgba(44,95,124,0.5); }
+  .info-bar .label { color: var(--text-dim); margin-right: 4px; }
+  .info-bar .value { color: var(--gold-bright); font-weight: bold; }
+  .energy-bar {
+    display: inline-block; width: 140px; height: 12px;
+    background: #111; border: 1px solid var(--gray);
+    border-radius: 6px; overflow: hidden; vertical-align: middle;
+    position: relative;
+  }
+  .energy-bar .fill {
+    height: 100%; transition: width 0.4s;
+    background: linear-gradient(90deg, #f5d76e 0%, #d4a857 100%);
+  }
+  .info-bar.ai .energy-bar .fill {
+    background: linear-gradient(90deg, #e74c3c 0%, #c0392b 100%);
+  }
+
+  /* ===== 棋盘 ===== */
+  .board-wrapper { display: flex; justify-content: center; padding: 6px 0; }
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 78px);
+    grid-template-rows: repeat(6, 78px);
+    gap: 2px;
+    background: rgba(0,0,0,0.5);
+    padding: 4px;
+    border-radius: 4px;
+    border: 1px solid var(--gold);
+  }
+  .cell {
+    width: 78px; height: 78px;
+    background: linear-gradient(135deg, #4a3a2c 0%, #3d2f23 100%);
+    border: 1px solid rgba(212,168,87,0.2);
+    border-radius: 3px;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-size: 12px;
+    overflow: hidden;
+  }
+  .cell:hover { background: linear-gradient(135deg, #5a4a3c 0%, #4d3f33 100%); }
+  .cell.base-player {
+    background: linear-gradient(135deg, #1c3e52 0%, #0e2230 100%);
+    border-color: var(--blue);
+    box-shadow: inset 0 0 12px rgba(44,95,124,0.5);
+  }
+  .cell.base-ai {
+    background: linear-gradient(135deg, #5a1e15 0%, #2a0e08 100%);
+    border-color: var(--red);
+    box-shadow: inset 0 0 12px rgba(192,57,43,0.5);
+  }
+  .cell.base-player::before, .cell.base-ai::before {
+    content: "本营"; position: absolute;
+    top: 2px; left: 4px; font-size: 10px; color: var(--gold-bright);
+    letter-spacing: 2px;
+  }
+  .cell.move-target {
+    background: rgba(95,168,95,0.4) !important;
+    box-shadow: inset 0 0 10px rgba(95,168,95,0.6);
+    border-color: var(--green);
+  }
+  .cell.attack-target {
+    background: rgba(192,57,43,0.5) !important;
+    box-shadow: inset 0 0 12px rgba(192,57,43,0.7);
+    border-color: var(--red);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: inset 0 0 8px rgba(192,57,43,0.5); }
+    50% { box-shadow: inset 0 0 18px rgba(192,57,43,0.9); }
+  }
+  .cell.summon-target {
+    background: rgba(245,215,110,0.3) !important;
+    border-color: var(--gold-bright);
+    box-shadow: inset 0 0 10px rgba(245,215,110,0.5);
+  }
+  .cell.selected {
+    box-shadow: 0 0 0 3px var(--gold-bright), inset 0 0 10px rgba(245,215,110,0.4);
+    border-color: var(--gold-bright);
+  }
+
+  .unit {
+    width: 92%; height: 92%;
+    border-radius: 4px;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    font-weight: bold; color: #fff;
+    position: relative;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.8);
+    cursor: pointer;
+  }
+  .unit.player {
+    background: linear-gradient(135deg, #2c5f7c 0%, #1c3e52 100%);
+    border: 1px solid #5fa8d4;
+  }
+  .unit.ai {
+    background: linear-gradient(135deg, #c0392b 0%, #8b1e15 100%);
+    border: 1px solid #e74c3c;
+  }
+  .unit .uname { font-size: 14px; letter-spacing: 1px; }
+  .unit .stats { font-size: 11px; margin-top: 2px; color: #f5d76e; }
+  .unit .range { font-size: 10px; color: var(--text-dim); position: absolute; bottom: 2px; right: 4px; }
+  .unit.acted { opacity: 0.55; }
+  .unit.dead { animation: die 0.5s forwards; }
+  @keyframes die {
+    to { opacity: 0; transform: scale(0.5); }
+  }
+
+  /* ===== 手牌区 ===== */
+  .hand-area {
+    background: rgba(0,0,0,0.3);
+    border: 1px solid rgba(212,168,87,0.3);
+    border-radius: 4px; padding: 8px;
+    margin-top: 8px;
+    min-height: 110px;
+  }
+  .hand-label { color: var(--gold-bright); font-size: 13px; margin-bottom: 6px; letter-spacing: 2px; }
+  .hand {
+    display: flex; gap: 8px; flex-wrap: wrap;
+    min-height: 80px;
+  }
+  .card {
+    width: 96px; height: 100px;
+    background: linear-gradient(135deg, #4a3a2c 0%, #2a1f17 100%);
+    border: 2px solid var(--gold);
+    border-radius: 4px;
+    padding: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    position: relative;
+    display: flex; flex-direction: column;
+    font-size: 11px;
+  }
+  .card:hover { transform: translateY(-6px); box-shadow: 0 4px 12px rgba(212,168,87,0.5); }
+  .card.selected { box-shadow: 0 0 0 3px var(--gold-bright), 0 4px 12px rgba(245,215,110,0.6); }
+  .card.ai-card { width: 60px; height: 80px; cursor: default; }
+  .card.ai-card:hover { transform: none; box-shadow: none; }
+  .card .cname { color: var(--gold-bright); font-weight: bold; font-size: 13px; text-align: center; margin-bottom: 2px; }
+  .card .faction { position: absolute; top: 2px; right: 4px; font-size: 10px; padding: 1px 4px; border-radius: 2px; }
+  .card .cost { position: absolute; top: 2px; left: 4px; font-size: 11px; color: var(--gold-bright); font-weight: bold; }
+  .card .type-icon { position: absolute; bottom: 2px; left: 4px; font-size: 9px; color: var(--text-dim); }
+  .card .stats { display: flex; justify-content: space-around; margin-top: 4px; font-size: 12px; color: #f5d76e; font-weight: bold; }
+  .card .skill { font-size: 10px; color: var(--text-dim); margin-top: 2px; line-height: 1.2; text-align: center; }
+  .card.ai-card .cname, .card.ai-card .stats, .card.ai-card .skill, .card.ai-card .cost { display: none; }
+
+  .faction-魏 { background: #2c5f7c; color: #fff; }
+  .faction-蜀 { background: #c0392b; color: #fff; }
+  .faction-吴 { background: #5fa85f; color: #fff; }
+  .faction-群 { background: #8e44ad; color: #fff; }
+
+  /* ===== 底部 ===== */
+  .controls {
+    margin-top: 10px;
+    display: flex; gap: 10px; align-items: center;
+    justify-content: space-between;
+  }
+  .controls button {
+    background: var(--gold);
+    color: #1a120c;
+    border: none; padding: 10px 24px;
+    font-size: 16px; font-weight: bold;
+    cursor: pointer; border-radius: 4px;
+    letter-spacing: 4px;
+    font-family: inherit;
+    transition: all 0.2s;
+  }
+  .controls button:hover:not(:disabled) { background: var(--gold-bright); box-shadow: 0 0 12px rgba(245,215,110,0.6); }
+  .controls button:disabled { background: #555; color: #888; cursor: not-allowed; }
+  .hint { color: var(--text-dim); font-size: 14px; flex: 1; text-align: center; }
+
+  /* ===== 战斗日志 ===== */
+  .log-area {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid rgba(212,168,87,0.2);
+    border-radius: 4px;
+    padding: 6px 10px;
+    margin-top: 8px;
+    height: 110px; overflow-y: auto;
+    font-size: 12px; line-height: 1.6;
+    color: var(--text-dim);
+  }
+  .log-area .entry { padding: 1px 0; }
+  .log-area .entry.player { color: #5fa8d4; }
+  .log-area .entry.ai { color: #e74c3c; }
+  .log-area .entry.system { color: var(--gold-bright); }
+  .log-area .entry.combat { color: #f5d76e; font-weight: bold; }
+
+  /* ===== 菜单弹窗 ===== */
+  .modal {
+    position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.85);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 100;
+  }
+  .modal-content {
+    background: linear-gradient(180deg, #2a1f17 0%, #1a120c 100%);
+    border: 2px solid var(--gold);
+    border-radius: 8px;
+    padding: 40px;
+    min-width: 420px;
+    box-shadow: 0 0 40px rgba(212,168,87,0.5);
+    text-align: center;
+  }
+  .modal-content h2 {
+    color: var(--gold-bright);
+    font-size: 36px; letter-spacing: 12px;
+    margin-bottom: 30px;
+    text-shadow: 0 0 12px rgba(245,215,110,0.5);
+  }
+  .modal-content .menu-item {
+    background: var(--bg-light);
+    color: var(--gold-bright);
+    border: 1px solid var(--gold);
+    padding: 12px 24px;
+    margin: 8px 0;
+    width: 220px;
+    font-size: 16px;
+    cursor: pointer;
+    border-radius: 4px;
+    font-family: inherit;
+    transition: all 0.2s;
+    letter-spacing: 4px;
+  }
+  .modal-content .menu-item:hover {
+    background: var(--gold); color: #1a120c;
+    transform: scale(1.05);
+  }
+  .modal-content .menu-item.selected {
+    background: var(--gold-bright); color: #1a120c;
+  }
+  .modal-content .desc {
+    color: var(--text-dim); font-size: 13px; margin-top: 8px;
+    min-height: 40px;
+  }
+  .modal-content .start-btn {
+    background: linear-gradient(180deg, var(--gold-bright) 0%, var(--gold) 100%);
+    color: #1a120c;
+    border: none;
+    padding: 14px 50px;
+    font-size: 20px;
+    font-weight: bold;
+    cursor: pointer;
+    border-radius: 4px;
+    margin-top: 20px;
+    letter-spacing: 8px;
+    font-family: inherit;
+  }
+  .modal-content .start-btn:hover { box-shadow: 0 0 16px rgba(245,215,110,0.7); }
+  .modal-content .rules {
+    color: var(--text-dim); font-size: 13px;
+    text-align: left;
+    margin-top: 24px;
+    padding: 16px;
+    background: rgba(0,0,0,0.3);
+    border-radius: 4px;
+    line-height: 1.8;
+  }
+
+  /* ===== 工具 ===== */
+  .hidden { display: none !important; }
+  .float-text {
+    position: absolute; pointer-events: none;
+    font-weight: bold; font-size: 18px;
+    text-shadow: 1px 1px 3px #000;
+    z-index: 50;
+    animation: floatUp 1.2s forwards;
+  }
+  @keyframes floatUp {
+    0% { opacity: 1; transform: translateY(0); }
+    100% { opacity: 0; transform: translateY(-30px); }
+  }
+</style>
+</head>
+<body>
+<div id="app">
+  <header>
+    <div class="title">三国棋·争霸<span class="sub">Three Kingdoms Chess</span></div>
+    <div class="header-actions">
+      <button onclick="Game.restart()">新局</button>
+      <button onclick="Game.showMenu()">菜单</button>
+    </div>
+  </header>
+
+  <div class="info-bar ai">
+    <span><span class="label">对手:</span><span class="value" id="ai-faction">魏</span></span>
+    <span><span class="label">体力</span><span class="energy-bar"><span class="fill" id="ai-energy"></span></span><span class="value" id="ai-energy-text">10/10</span></span>
+    <span><span class="label">手牌</span><span class="value" id="ai-hand-count">0</span></span>
+    <span><span class="label">场上</span><span class="value" id="ai-unit-count">0</span></span>
+    <span style="margin-left:auto"><span class="label">回合</span><span class="value" id="round-num">1</span></span>
+  </div>
+
+  <div class="board-wrapper">
+    <div id="board"></div>
+  </div>
+
+  <div class="info-bar player">
+    <span><span class="label">我方:</span><span class="value" id="player-faction">蜀</span></span>
+    <span><span class="label">体力</span><span class="energy-bar"><span class="fill" id="player-energy"></span></span><span class="value" id="player-energy-text">10/10</span></span>
+    <span><span class="label">手牌</span><span class="value" id="player-hand-count">0</span></span>
+    <span><span class="label">场上</span><span class="value" id="player-unit-count">0</span></span>
+    <span style="margin-left:auto"><span class="label">阶段</span><span class="value" id="phase-text">我方回合</span></span>
+  </div>
+
+  <div class="hand-area">
+    <div class="hand-label">我方手牌</div>
+    <div class="hand" id="player-hand"></div>
+  </div>
+
+  <div class="hand-area" style="margin-top:6px">
+    <div class="hand-label">对手手牌（背面）</div>
+    <div class="hand" id="ai-hand"></div>
+  </div>
+
+  <div class="controls">
+    <button id="end-turn-btn" onclick="Game.endTurn()">结束回合</button>
+    <div class="hint" id="hint">点击手牌召唤武将，或点击场上武将移动/攻击</div>
+    <button onclick="Game.toggleLog()">日志</button>
+  </div>
+
+  <div class="log-area hidden" id="log"></div>
+</div>
+
+<!-- ===== 开始菜单 ===== -->
+<div class="modal" id="menu-modal">
+  <div class="modal-content">
+    <h2>三 国 棋 · 争 霸</h2>
+    <div style="color:var(--text-dim); margin-bottom:20px">选择你的势力与难度</div>
+
+    <div style="margin-bottom:20px">
+      <div style="color:var(--gold-bright); margin-bottom:8px; letter-spacing:4px">我方势力</div>
+      <button class="menu-item selected" data-faction="蜀" onclick="Game.selectFaction(this,'蜀')">蜀 汉</button>
+      <button class="menu-item" data-faction="魏" onclick="Game.selectFaction(this,'魏')">曹 魏</button>
+      <button class="menu-item" data-faction="吴" onclick="Game.selectFaction(this,'吴')">东 吴</button>
+    </div>
+
+    <div style="margin-bottom:20px">
+      <div style="color:var(--gold-bright); margin-bottom:8px; letter-spacing:4px">AI 难度</div>
+      <button class="menu-item" data-diff="1" onclick="Game.selectDiff(this,1)">简 单</button>
+      <button class="menu-item selected" data-diff="2" onclick="Game.selectDiff(this,2)">普 通</button>
+      <button class="menu-item" data-diff="3" onclick="Game.selectDiff(this,3)">困 难</button>
+      <div class="desc" id="diff-desc">普通：AI 评估威胁值，优先高性价比</div>
+    </div>
+
+    <button class="start-btn" onclick="Game.start()">开 始 战 役</button>
+
+    <div class="rules">
+      <strong style="color:var(--gold-bright)">玩法说明：</strong><br>
+      · 8×6 棋盘，左右两端为大本营，占领对方大本营获胜<br>
+      · 回合开始恢复体力至满，每回合抽 5 张牌<br>
+      · 点击<strong style="color:var(--gold-bright)">手牌</strong> → 点击己方半场空格 召唤武将<br>
+      · 点击场上<strong style="color:#5fa8d4">我方武将</strong> → 点击绿色格子 移动；点击红色格子 攻击<br>
+      · 武将移动力决定每回合移动格数，攻击范围决定可攻击距离<br>
+      · 武将死亡会永久离场，手牌耗尽将自动抽至 5 张
+    </div>
+  </div>
+</div>
+
+<!-- ===== 结果弹窗 ===== -->
+<div class="modal hidden" id="result-modal">
+  <div class="modal-content">
+    <h2 id="result-title">胜 利</h2>
+    <div id="result-desc" style="color:var(--text-dim); margin-bottom:24px"></div>
+    <button class="start-btn" onclick="Game.restart()">再 战 一 局</button>
+    <br>
+    <button class="menu-item" style="margin-top:12px" onclick="Game.showMenu()">返回菜单</button>
+  </div>
+</div>
+
+<script>
+/* ================================================================
+ *  三国棋·争霸 - 游戏主逻辑
+ * ================================================================ */
+
+// ============ 武将数据 ============
+const CARDS = [
+  // 步兵
+  { name:'关羽',   faction:'蜀', cost:3, atk:3, hp:7, maxHp:7, move:1, range:1, type:'步', skill:'武圣', desc:'击杀时+2体力' },
+  { name:'张辽',   faction:'魏', cost:3, atk:3, hp:6, maxHp:6, move:1, range:1, type:'步', skill:'突袭', desc:'攻击不消耗移动' },
+  { name:'周泰',   faction:'吴', cost:3, atk:2, hp:8, maxHp:8, move:1, range:1, type:'步', skill:'固守', desc:'受伤害-1(至少1)' },
+  // 骑兵
+  { name:'赵云',   faction:'蜀', cost:4, atk:4, hp:5, maxHp:5, move:2, range:1, type:'骑', skill:'龙胆', desc:'攻击+1' },
+  { name:'张飞',   faction:'蜀', cost:4, atk:5, hp:5, maxHp:5, move:1, range:1, type:'骑', skill:'咆哮', desc:'周围敌人攻击-1' },
+  { name:'甘宁',   faction:'吴', cost:4, atk:4, hp:5, maxHp:5, move:2, range:1, type:'骑', skill:'锦帆', desc:'首次攻击必杀' },
+  { name:'夏侯惇', faction:'魏', cost:4, atk:4, hp:6, maxHp:6, move:1, range:1, type:'骑', skill:'刚烈', desc:'受击反弹1点' },
+  // 弓兵
+  { name:'黄忠',   faction:'蜀', cost:3, atk:3, hp:4, maxHp:4, move:1, range:2, type:'弓', skill:'百发', desc:'远程攻击+1' },
+  { name:'夏侯渊', faction:'魏', cost:3, atk:3, hp:4, maxHp:4, move:1, range:2, type:'弓', skill:'疾射', desc:'每回合可攻击2次' },
+  { name:'太史慈', faction:'吴', cost:3, atk:3, hp:4, maxHp:4, move:1, range:2, type:'弓', skill:'天义', desc:'无视1点防御' },
+  // 谋士
+  { name:'诸葛亮', faction:'蜀', cost:5, atk:2, hp:5, maxHp:5, move:1, range:2, type:'谋', skill:'观星', desc:'抽牌+1' },
+  { name:'司马懿', faction:'魏', cost:5, atk:2, hp:5, maxHp:5, move:1, range:2, type:'谋', skill:'鬼才', desc:'受击时回1血' },
+  { name:'周瑜',   faction:'吴', cost:5, atk:3, hp:4, maxHp:4, move:1, range:2, type:'谋', skill:'火计', desc:'攻击附加1点伤害' },
+  { name:'郭嘉',   faction:'群', cost:4, atk:2, hp:4, maxHp:4, move:1, range:2, type:'谋', skill:'遗计', desc:'召唤费-1' },
+  // 英雄
+  { name:'吕布',   faction:'群', cost:7, atk:6, hp:7, maxHp:7, move:1, range:1, type:'英', skill:'无双', desc:'攻击两次' },
+  { name:'曹操',   faction:'魏', cost:6, atk:4, hp:6, maxHp:6, move:1, range:1, type:'英', skill:'奸雄', desc:'受伤时抽1牌' },
+  { name:'刘备',   faction:'蜀', cost:6, atk:3, hp:7, maxHp:7, move:1, range:1, type:'英', skill:'仁德', desc:'回合开始回1血' },
+  { name:'孙策',   faction:'吴', cost:6, atk:5, hp:5, maxHp:5, move:2, range:1, type:'英', skill:'制江', desc:'首次移动+1' },
+  { name:'董卓',   faction:'群', cost:6, atk:5, hp:8, maxHp:8, move:1, range:1, type:'英', skill:'暴虐', desc:'每回合+1攻击' },
+];
+
+const BOARD_W = 8, BOARD_H = 6;
+const MAX_ENERGY = 10;
+const HAND_SIZE = 5;
+
+// ============ 全局状态 ============
+const Game = {
+  state: null,
+  difficulty: 2,
+  playerFaction: '蜀',
+  aiFaction: '魏',
+  selectedHandIdx: -1,
+  selectedUnitId: -1,
+  logVisible: true,
+};
+
+function makeUnit(card, owner, uid) {
+  return {
+    uid, owner,
+    name: card.name, faction: card.faction,
+    atk: card.atk, hp: card.hp, maxHp: card.maxHp,
+    move: card.move, moveLeft: card.move,
+    range: card.range, type: card.type, skill: card.skill, desc: card.desc,
+    cost: card.cost,
+    x: -1, y: -1,
+    attacked: false,
+    moved: false,
+    bonusAtk: 0,    // 董卓累积
+    summonTurn: 0,
+  };
+}
+
+function newGame() {
+  // 玩家势力选定的优先，对方随机
+  const factions = ['魏','蜀','吴'];
+  const others = factions.filter(f => f !== Game.playerFaction);
+  Game.aiFaction = others[Math.floor(Math.random() * others.length)];
+
+  // 构建玩家牌库：优先本势力 + 部分群雄
+  let playerPool = CARDS.filter(c => c.faction === Game.playerFaction || c.faction === '群');
+  // AI 牌库
+  let aiPool = CARDS.filter(c => c.faction === Game.aiFaction || c.faction === '群');
+
+  // 复制并洗牌
+  const shuffle = arr => { const a = arr.slice(); for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];} return a; };
+  playerPool = shuffle(playerPool);
+  aiPool = shuffle(aiPool);
+
+  Game.state = {
+    board: Array.from({length: BOARD_H}, () => Array(BOARD_W).fill(null)),
+    player: { energy: MAX_ENERGY, hand: [], deck: playerPool.slice(8), grave: [], units: [] },
+    ai:     { energy: MAX_ENERGY, hand: [], deck: aiPool.slice(8),     grave: [], units: [] },
+    turn: 'player', // 'player' | 'ai'
+    round: 1,
+    nextUid: 1,
+    log: [],
+    gameOver: false,
+  };
+
+  // 初始手牌
+  drawCards('player', HAND_SIZE);
+  drawCards('ai', HAND_SIZE);
+
+  addLog('system', `第 ${Game.state.round} 回合开始，你方先手`);
+  render();
+}
+
+function drawCards(owner, n) {
+  const s = Game.state[owner];
+  while (s.hand.length < HAND_SIZE && n > 0) {
+    if (s.deck.length === 0) {
+      // 循环：把弃牌堆洗回牌库
+      if (s.grave.length === 0) break;
+      s.deck = shuffle(s.grave);
+      s.grave = [];
+      addLog('system', `${owner === 'player' ? '我方' : '对手'}牌库已重洗`);
+    }
+    s.hand.push(s.deck.shift());
+    n--;
+  }
+}
+function shuffle(arr){const a=arr.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]];}return a;}
+
+function addLog(type, msg) {
+  Game.state.log.push({ type, msg, time: Date.now() });
+  // 限制长度
+  if (Game.state.log.length > 200) Game.state.log.shift();
+  renderLog();
+}
+
+// ============ 渲染 ============
+function render() {
+  renderBoard();
+  renderHand();
+  renderInfoBars();
+  renderControls();
+}
+
+function renderInfoBars() {
+  const s = Game.state;
+  document.getElementById('ai-faction').textContent = Game.aiFaction;
+  document.getElementById('player-faction').textContent = Game.playerFaction;
+
+  setEnergy('ai', s.ai);
+  setEnergy('player', s.player);
+
+  document.getElementById('ai-hand-count').textContent = s.ai.hand.length;
+  document.getElementById('ai-unit-count').textContent = s.ai.units.filter(u=>u.hp>0).length;
+  document.getElementById('player-hand-count').textContent = s.player.hand.length;
+  document.getElementById('player-unit-count').textContent = s.player.units.filter(u=>u.hp>0).length;
+  document.getElementById('round-num').textContent = s.round;
+  document.getElementById('phase-text').textContent =
+    s.gameOver ? '对局结束' :
+    s.turn === 'player' ? '我方回合' : '对手回合…';
+}
+function setEnergy(id, side) {
+  const pct = Math.max(0, side.energy) / MAX_ENERGY * 100;
+  document.getElementById(`${id}-energy`).style.width = pct + '%';
+  document.getElementById(`${id}-energy-text`).textContent = `${Math.max(0,side.energy)}/${MAX_ENERGY}`;
+}
+
+function renderBoard() {
+  const board = document.getElementById('board');
+  board.innerHTML = '';
+  const s = Game.state;
+  for (let y = 0; y < BOARD_H; y++) {
+    for (let x = 0; x < BOARD_W; x++) {
+      const cell = document.createElement('div');
+      cell.className = 'cell';
+      // 大本营
+      if (x === 0) cell.classList.add('base-player');
+      if (x === BOARD_W - 1) cell.classList.add('base-ai');
+
+      const u = s.board[y][x];
+      if (u) {
+        const unit = document.createElement('div');
+        unit.className = `unit ${u.owner}`;
+        if (u.moved && u.attacked) unit.classList.add('acted');
+        if (Game.state.turn === u.owner && u.uid === Game.selectedUnitId) unit.classList.add('selected');
+        const bonusAtk = u.bonusAtk ? `+${u.bonusAtk}` : '';
+        unit.innerHTML = `
+          <div class="uname">${u.name}</div>
+          <div class="stats">⚔ ${u.atk + u.bonusAtk}${bonusAtk?'(+)':''}  ❤ ${u.hp}/${u.maxHp}</div>
+          <div class="range">${u.move}M ${u.range}R</div>
+        `;
+        cell.appendChild(unit);
+        unit.onclick = (e) => { e.stopPropagation(); onUnitClick(u); };
+      }
+
+      // 高亮目标格
+      if (highlightCells.move.some(p => p[0]===x && p[1]===y)) cell.classList.add('move-target');
+      if (highlightCells.attack.some(p => p[0]===x && p[1]===y)) cell.classList.add('attack-target');
+      if (highlightCells.summon.some(p => p[0]===x && p[1]===y)) cell.classList.add('summon-target');
+
+      cell.onclick = () => onCellClick(x, y);
+      board.appendChild(cell);
+    }
+  }
+}
+
+let highlightCells = { move: [], attack: [], summon: [] };
+
+function renderHand() {
+  const s = Game.state;
+  // 玩家
+  const pHand = document.getElementById('player-hand');
+  pHand.innerHTML = '';
+  s.player.hand.forEach((card, idx) => {
+    const c = document.createElement('div');
+    c.className = 'card' + (idx === Game.selectedHandIdx ? ' selected' : '');
+    const canSummon = Game.state.turn === 'player' && s.player.energy >= card.cost;
+    if (!canSummon) c.style.opacity = 0.5;
+    c.innerHTML = `
+      <div class="cost">${card.cost}</div>
+      <div class="faction faction-${card.faction}">${card.faction}</div>
+      <div class="cname">${card.name}</div>
+      <div class="stats"><span>⚔${card.atk}</span><span>❤${card.hp}</span></div>
+      <div class="skill">${card.skill}</div>
+      <div class="type-icon">${card.type} ${card.move}M ${card.range}R</div>
+    `;
+    c.onclick = () => onHandClick(idx);
+    pHand.appendChild(c);
+  });
+  // AI 手牌背面
+  const aHand = document.getElementById('ai-hand');
+  aHand.innerHTML = '';
+  s.ai.hand.forEach(() => {
+    const c = document.createElement('div');
+    c.className = 'card ai-card';
+    aHand.appendChild(c);
+  });
+}
+
+function renderControls() {
+  const s = Game.state;
+  const btn = document.getElementById('end-turn-btn');
+  btn.disabled = s.turn !== 'player' || s.gameOver;
+  btn.textContent = s.turn === 'player' ? '结束回合' : '对手行动中…';
+}
+
+function renderLog() {
+  const logEl = document.getElementById('log');
+  const last = Game.state.log.slice(-30);
+  logEl.innerHTML = last.map(e => `<div class="entry ${e.type}">[${e.type==='player'?'我':e.type==='ai'?'敌':'·'}] ${e.msg}</div>`).join('');
+  logEl.scrollTop = logEl.scrollHeight;
+}
+
+// ============ 交互 ============
+function onHandClick(idx) {
+  const s = Game.state;
+  if (s.turn !== 'player' || s.gameOver) return;
+  // 如果已选中场上单位，先取消
+  if (Game.selectedUnitId >= 0) {
+    Game.selectedUnitId = -1;
+    Game.selectedHandIdx = idx;
+    updateSummonTargets();
+  } else if (Game.selectedHandIdx === idx) {
+    Game.selectedHandIdx = -1;
+    highlightCells = { move:[], attack:[], summon:[] };
+  } else {
+    Game.selectedHandIdx = idx;
+    updateSummonTargets();
+  }
+  setHint();
+  render();
+}
+
+function updateSummonTargets() {
+  highlightCells = { move:[], attack:[], summon:[] };
+  if (Game.selectedHandIdx < 0) return;
+  const s = Game.state;
+  const card = s.player.hand[Game.selectedHandIdx];
+  if (!card || s.player.energy < card.cost) return;
+  // 玩家召唤范围：前 4 列（x < 4），即己方半场
+  for (let y = 0; y < BOARD_H; y++) {
+    for (let x = 0; x < 4; x++) {
+      if (!s.board[y][x]) highlightCells.summon.push([x, y]);
+    }
+  }
+}
+
+function onUnitClick(u) {
+  const s = Game.state;
+  if (s.gameOver) return;
+  if (u.owner !== s.turn) {
+    // 敌方单位：在攻击模式下作为目标
+    if (Game.selectedUnitId >= 0) {
+      const attacker = findUnitById(Game.selectedUnitId);
+      if (attacker && attacker.owner === s.turn && !attacker.attacked) {
+        const targets = getAttackTargets(attacker);
+        if (targets.some(t => t.uid === u.uid)) {
+          doAttack(attacker, u);
+          clearSelection();
+          return;
+        }
+      }
+    }
+    return;
+  }
+  // 己方单位
+  if (Game.selectedHandIdx >= 0) {
+    // 取消召唤
+    Game.selectedHandIdx = -1;
+    highlightCells = { move:[], attack:[], summon:[] };
+    Game.selectedUnitId = u.uid;
+    updateUnitTargets(u);
+    setHint();
+    render();
+    return;
+  }
+  if (Game.selectedUnitId === u.uid) {
+    clearSelection();
+  } else {
+    Game.selectedUnitId = u.uid;
+    updateUnitTargets(u);
+    setHint();
+    render();
+  }
+}
+
+function updateUnitTargets(u) {
+  highlightCells = { move:[], attack:[], summon:[] };
+  if (!u.moved) {
+    highlightCells.move = getMoveTargets(u);
+  }
+  if (!u.attacked) {
+    highlightCells.attack = getAttackTargets(u).map(t => [t.x, t.y]);
+  }
+}
+
+function onCellClick(x, y) {
+  const s = Game.state;
+  if (s.gameOver || s.turn !== 'player') return;
+
+  // 召唤模式
+  if (Game.selectedHandIdx >= 0) {
+    if (highlightCells.summon.some(p => p[0]===x && p[1]===y)) {
+      const card = s.player.hand[Game.selectedHandIdx];
+      summonUnit(card, 'player', x, y);
+      Game.selectedHandIdx = -1;
+      highlightCells = { move:[], attack:[], summon:[] };
+      setHint();
+      render();
+    }
+    return;
+  }
+
+  // 移动模式
+  if (Game.selectedUnitId >= 0 && highlightCells.move.some(p => p[0]===x && p[1]===y)) {
+    const u = findUnitById(Game.selectedUnitId);
+    if (u) {
+      moveUnit(u, x, y);
+      updateUnitTargets(u);
+      render();
+    }
+    return;
+  }
+
+  // 攻击模式
+  if (Game.selectedUnitId >= 0 && highlightCells.attack.some(p => p[0]===x && p[1]===y)) {
+    const attacker = findUnitById(Game.selectedUnitId);
+    const tgt = s.board[y][x];
+    if (attacker && tgt) {
+      doAttack(attacker, tgt);
+      updateUnitTargets(attacker);
+      render();
+    }
+    return;
+  }
+}
+
+function clearSelection() {
+  Game.selectedUnitId = -1;
+  Game.selectedHandIdx = -1;
+  highlightCells = { move:[], attack:[], summon:[] };
+  setHint();
+  render();
+}
+
+function setHint() {
+  const s = Game.state;
+  if (s.gameOver) { setHintText('对局已结束'); return; }
+  if (s.turn !== 'player') { setHintText('对手思考中…'); return; }
+  if (Game.selectedHandIdx >= 0) {
+    const card = s.player.hand[Game.selectedHandIdx];
+    if (s.player.energy < card.cost) {
+      setHintText(`体力不足（需要 ${card.cost}）`);
+    } else {
+      setHintText(`请选择左侧己方半场的空格召唤 ${card.name}（消耗 ${card.cost} 体力）`);
+    }
+    return;
+  }
+  if (Game.selectedUnitId >= 0) {
+    const u = findUnitById(Game.selectedUnitId);
+    if (u) {
+      const canMove = !u.moved;
+      const canAtk = !u.attacked;
+      if (canMove) setHintText(`点击绿色格子移动 ${u.name}，或点击红色格子攻击`);
+      else if (canAtk) setHintText(`点击红色格子让 ${u.name} 攻击`);
+      else setHintText(`${u.name} 本回合已行动完毕`);
+    }
+    return;
+  }
+  setHintText('点击手牌召唤武将，或点击场上武将移动/攻击');
+}
+function setHintText(t){ document.getElementById('hint').textContent = t; }
+
+// ============ 规则 ============
+function findUnitById(uid) {
+  for (const o of ['player','ai']) {
+    const u = Game.state[o].units.find(u => u.uid === uid);
+    if (u) return u;
+  }
+  return null;
+}
+
+function getMoveTargets(u) {
+  // BFS 最多 u.move 步, 不穿过其他单位
+  const s = Game.state;
+  const visited = new Set([`${u.x},${u.y}`]);
+  const queue = [[u.x, u.y, 0]];
+  const targets = [];
+  while (queue.length) {
+    const [cx, cy, d] = queue.shift();
+    if (d > 0) targets.push([cx, cy]);
+    if (d >= u.move) continue;
+    for (const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]]) {
+      const nx = cx+dx, ny = cy+dy;
+      if (nx<0||nx>=BOARD_W||ny<0||ny>=BOARD_H) continue;
+      const key = `${nx},${ny}`;
+      if (visited.has(key)) continue;
+      // 不可进入敌方大本营以外的敌方单位（也不能进入敌方大本营除非能赢）
+      const occupant = s.board[ny][nx];
+      if (occupant && occupant.uid !== u.uid) {
+        // 允许踏入敌方大本营（占领）
+        const isEnemyBase = (nx === BOARD_W-1 && u.owner === 'player') || (nx === 0 && u.owner === 'ai');
+        if (!isEnemyBase) continue;
+      }
+      // 不能进入自己大本营（避免误入）
+      const ownBase = (nx === 0 && u.owner === 'player') || (nx === BOARD_W-1 && u.owner === 'ai');
+      if (ownBase) continue;
+      visited.add(key);
+      queue.push([nx, ny, d+1]);
+    }
+  }
+  return targets;
+}
+
+function getAttackTargets(u) {
+  // u.range 曼哈顿距离内的敌方单位（不可攻击大本营）
+  const s = Game.state;
+  const targets = [];
+  for (let y = 0; y < BOARD_H; y++) {
+    for (let x = 0; x < BOARD_W; x++) {
+      const t = s.board[y][x];
+      if (!t || t.owner === u.owner) continue;
+      // 不能直接攻击大本营位置（但可以踏入）
+      const isEnemyBase = (x === BOARD_W-1 && u.owner === 'player') || (x === 0 && u.owner === 'ai');
+      if (isEnemyBase) continue;
+      const dist = Math.abs(x - u.x) + Math.abs(y - u.y);
+      if (dist > 0 && dist <= u.range) targets.push(t);
+    }
+  }
+  return targets;
+}
+
+function summonUnit(card, owner, x, y) {
+  const s = Game.state;
+  const uid = s.nextUid++;
+  const u = makeUnit(card, owner, uid);
+  u.x = x; u.y = y;
+  u.summonTurn = s.round;
+  s.board[y][x] = u;
+  s[owner].units.push(u);
+  s[owner].energy -= card.cost;
+  s[owner].hand.splice(s[owner].hand.indexOf(card), 1);
+  addLog(owner, `召唤【${card.name}】(${x},${y})`);
+  // 诸葛亮技能：抽牌+1
+  if (card.skill === '观星') {
+    drawCards(owner, 1);
+    addLog(owner, `${card.name} 观星发动，抽取 1 张牌`);
+  }
+}
+
+function moveUnit(u, nx, ny) {
+  const s = Game.state;
+  const oldX = u.x, oldY = u.y;
+  const dist = Math.abs(nx - oldX) + Math.abs(ny - oldY);
+  s.board[oldY][oldX] = null;
+  u.x = nx; u.y = ny;
+  s.board[ny][nx] = u;
+  u.moved = true;
+  // 移动消耗体力
+  const cost = Math.max(1, dist);
+  s[u.owner].energy = Math.max(0, s[u.owner].energy - cost);
+  addLog(u.owner, `【${u.name}】移动到 (${nx},${ny})`);
+  checkVictory();
+}
+
+function doAttack(attacker, target) {
+  const s = Game.state;
+  let atk = attacker.atk + attacker.bonusAtk;
+  let dmg = atk;
+
+  // 技能加成
+  if (attacker.skill === '龙胆') dmg += 1;
+  if (attacker.skill === '百发') dmg += 1;
+  if (attacker.skill === '火计') dmg += 1;
+  if (attacker.skill === '锦帆' && attacker.summonTurn === s.round) dmg = target.hp; // 首击必杀
+  if (attacker.skill === '天义') dmg = Math.max(1, dmg - 0); // 无视1点防御在受击端处理
+  if (attacker.skill === '无双') {
+    // 攻击两次：先正常攻击一次，记录 isFirstStrike
+    doSingleAttack(attacker, target, dmg, /*isDouble*/true);
+    return;
+  }
+
+  doSingleAttack(attacker, target, dmg, false);
+  attacker.attacked = true;
+}
+
+function doSingleAttack(attacker, target, dmg, isDouble) {
+  const s = Game.state;
+  let actual = dmg;
+
+  // 防御减免
+  let defense = 0;
+  if (target.skill === '固守') defense = 1;
+  if (target.skill === '天义') actual = Math.max(1, dmg + 1 - defense); // 无视防御时反向
+  else actual = Math.max(1, dmg - defense);
+
+  // 咆哮：周围敌人攻击-1
+  // 简化：检查相邻格子是否有张飞
+  for (let dy=-1; dy<=1; dy++) for (let dx=-1; dx<=1; dx++) {
+    if (!dx && !dy) continue;
+    const nx = target.x + dx, ny = target.y + dy;
+    const nb = s.board[ny] && s.board[ny][nx];
+    if (nb && nb.name === '张飞' && nb.owner !== target.owner) {
+      actual = Math.max(1, actual - 1);
+    }
+  }
+
+  target.hp -= actual;
+  // 鬼才：受击回1血
+  if (target.skill === '鬼才' && target.hp > 0) {
+    target.hp = Math.min(target.maxHp, target.hp + 1);
+  }
+
+  // 刚烈：反弹1
+  if (target.skill === '刚烈' && target.hp > 0) {
+    attacker.hp -= 1;
+    addLog('combat', `${target.name} 发动刚烈，反弹 1 点伤害`);
+  }
+
+  // 受伤抽牌
+  if (target.skill === '奸雄') {
+    drawCards(target.owner, 1);
+    addLog(target.owner, `${target.name} 奸雄发动，抽取 1 张牌`);
+  }
+
+  addLog('combat', `${attacker.name} 攻击 ${target.name}，造成 ${actual} 点伤害`);
+
+  // 浮字
+  floatDmg(target.x, target.y, actual, '#e74c3c');
+  if (attacker.skill === '刚烈' || target.skill === '刚烈') {
+    floatDmg(attacker.x, attacker.y, 1, '#f5d76e');
+  }
+
+  // 判定死亡
+  const targetHp = target.hp;
+  const targetKilled = targetHp <= 0;
+  checkDeath(target);
+  if (attacker.hp <= 0) checkDeath(attacker);
+
+  // 关羽武圣：击杀时+2体力
+  if (targetKilled && attacker.skill === '武圣') {
+    s[attacker.owner].energy = Math.min(MAX_ENERGY, s[attacker.owner].energy + 2);
+    addLog(attacker.owner, `${attacker.name} 发动武圣，回 2 体力`);
+  }
+
+  if (!isDouble) {
+    attacker.attacked = true;
+    checkVictory();
+  } else {
+    // 双击：第一次后判断是否还能第二次
+    if (attacker.hp > 0 && target.hp > 0) {
+      // 第二次
+      setTimeout(() => {
+        doSingleAttack(attacker, target, dmg, false);
+        render();
+      }, 350);
+    } else {
+      attacker.attacked = true;
+      checkVictory();
+    }
+  }
+}
+
+function checkDeath(u) {
+  if (u.hp > 0) return;
+  const s = Game.state;
+  s.board[u.y][u.x] = null;
+  const side = s[u.owner];
+  side.units = side.units.filter(x => x !== u);
+  side.grave.push({ name: u.name, faction: u.faction });
+  addLog(u.owner, `【${u.name}】阵亡`);
+  // 死亡动画标记
+  render();
+}
+
+function checkVictory() {
+  const s = Game.state;
+  if (s.gameOver) return;
+  // 玩家踏入 AI 大本营
+  for (let y = 0; y < BOARD_H; y++) {
+    const u = s.board[y][BOARD_W - 1];
+    if (u && u.owner === 'player') {
+      s.gameOver = true;
+      setTimeout(() => showResult('victory', '你成功攻占了敌方大本营！'), 200);
+      return;
+    }
+    const u2 = s.board[y][0];
+    if (u2 && u2.owner === 'ai') {
+      s.gameOver = true;
+      setTimeout(() => showResult('defeat', '敌方攻入了我方大本营！'), 200);
+      return;
+    }
+  }
+}
+
+function showResult(type, msg) {
+  const m = document.getElementById('result-modal');
+  const t = document.getElementById('result-title');
+  const d = document.getElementById('result-desc');
+  t.textContent = type === 'victory' ? '胜 利' : '失 败';
+  t.style.color = type === 'victory' ? 'var(--gold-bright)' : '#e74c3c';
+  d.textContent = msg;
+  m.classList.remove('hidden');
+}
+
+// ============ 回合控制 ============
+function endTurn() {
+  const s = Game.state;
+  if (s.turn !== 'player' || s.gameOver) return;
+  // 重置所有玩家单位
+  s.player.units.forEach(u => {
+    u.moved = false;
+    u.attacked = false;
+    // 仁德：回合开始回1血
+    if (u.skill === '仁德') {
+      u.hp = Math.min(u.maxHp, u.hp + 1);
+      addLog('player', `${u.name} 仁德发动，回 1 血`);
+    }
+  });
+  // 恢复玩家体力
+  s.player.energy = MAX_ENERGY;
+  drawCards('player', HAND_SIZE - s.player.hand.length);
+
+  // 切换到 AI 回合
+  s.turn = 'ai';
+  addLog('system', `—— 玩家回合结束 ——`);
+  render();
+  // 启动 AI
+  setTimeout(() => aiTurn(), 600);
+}
+
+function aiTurn() {
+  const s = Game.state;
+  if (s.gameOver) return;
+  // AI 回合开始：抽牌 + 重置
+  s.ai.units.forEach(u => {
+    u.moved = false;
+    u.attacked = false;
+    if (u.skill === '仁德') {
+      u.hp = Math.min(u.maxHp, u.hp + 1);
+    }
+    // 董卓暴虐：每回合+1攻击
+    if (u.skill === '暴虐') {
+      u.bonusAtk += 1;
+    }
+  });
+  s.ai.energy = MAX_ENERGY;
+  drawCards('ai', HAND_SIZE - s.ai.hand.length);
+  render();
+  addLog('system', `—— AI 回合开始 ——`);
+
+  // AI 思考：依次出牌 → 移动 → 攻击
+  setTimeout(() => aiStep(0), 600);
+}
+
+let aiStepIdx = 0;
+let aiPlan = [];
+function aiPlanBuild() {
+  const s = Game.state;
+  aiPlan = [];
+  // 1) 出牌
+  const handCopy = s.ai.hand.slice();
+  handCopy.sort((a, b) => a.cost - b.cost); // 优先低费
+  for (const card of handCopy) {
+    if (s.ai.energy < card.cost) continue;
+    if (s.ai.units.length >= 6) break;
+    // 找最优放置点
+    const pos = aiBestSummonPos(card);
+    if (!pos) continue;
+    aiPlan.push({ type: 'summon', card, x: pos.x, y: pos.y });
+    s.ai.energy -= card.cost;
+  }
+  // 2) 每个单位尝试移动 + 攻击
+  for (const u of s.ai.units.slice()) {
+    if (u.hp <= 0) continue;
+    // 攻击优先（远距离）
+    const targets = getAttackTargets(u);
+    if (targets.length > 0) {
+      // 选最佳目标：低血量优先 / 玩家单位优先
+      targets.sort((a, b) => a.hp - b.hp);
+      aiPlan.push({ type: 'attack', attacker: u, target: targets[0] });
+    }
+    // 然后移动
+    const moves = getMoveTargets(u);
+    if (moves.length > 0) {
+      // 选最佳移动：靠近玩家大本营
+      moves.sort((a, b) => {
+        const da = (BOARD_W - 1 - a[0]) + Math.abs(2.5 - a[1]);
+        const db = (BOARD_W - 1 - b[0]) + Math.abs(2.5 - b[1]);
+        return da - db;
+      });
+      const best = moves[0];
+      aiPlan.push({ type: 'move', u, x: best[0], y: best[1] });
+    }
+  }
+}
+function aiBestSummonPos(card) {
+  const s = Game.state;
+  let best = null, bestScore = -Infinity;
+  for (let y = 0; y < BOARD_H; y++) {
+    for (let x = 4; x < BOARD_W - 1; x++) { // AI 半场：右半，不能放在 AI 大本营
+      if (s.board[y][x]) continue;
+      // 不能放在 AI 大本营（已通过循环边界排除）
+      // 评分：距离玩家大本营近 + 距离敌方单位攻击范围外
+      let score = (x) * 2 + Math.abs(2.5 - y) * 0.5;
+      if (Game.difficulty >= 2) {
+        // 检查附近是否有玩家远程单位
+        for (let dy = -2; dy <= 2; dy++) for (let dx = -2; dx <= 2; dx++) {
+          const nx = x+dx, ny = y+dy;
+          if (nx<0||nx>=BOARD_W||ny<0||ny>=BOARD_H) continue;
+          const u = s.board[ny][nx];
+          if (u && u.owner === 'player' && u.range >= Math.abs(dx)+Math.abs(dy)) {
+            score -= 3;
+          }
+        }
+      }
+      if (Game.difficulty >= 3) {
+        // 困难：更倾向于靠中央、便于支援
+        score -= Math.abs(2.5 - y) * 0.5;
+      }
+      if (score > bestScore) { bestScore = score; best = { x, y }; }
+    }
+  }
+  return best;
+}
+
+function aiStep(step) {
+  if (Game.state.gameOver) return;
+  if (step === 0) aiPlanBuild();
+  if (step >= aiPlan.length) {
+    // AI 回合结束
+    finishAiTurn();
+    return;
+  }
+  const act = aiPlan[step];
+  if (act.type === 'summon') {
+    summonUnit(act.card, 'ai', act.x, act.y);
+    render();
+    setTimeout(() => aiStep(step + 1), 500);
+  } else if (act.type === 'attack') {
+    const a = act.attacker, t = act.target;
+    // 验证目标仍存在
+    if (Game.state.board[t.y][t.x] === t && a.hp > 0 && t.hp > 0) {
+      doAttack(a, t);
+      render();
+    }
+    setTimeout(() => aiStep(step + 1), 500);
+  } else if (act.type === 'move') {
+    const u = act.u;
+    if (Game.state.board[u.y][u.x] === u && u.hp > 0 && !u.moved) {
+      // 注意：doAttack 已设置 attacked，moveUnit 设置 moved
+      moveUnit(u, act.x, act.y);
+      render();
+    }
+    setTimeout(() => aiStep(step + 1), 400);
+  }
+}
+
+function finishAiTurn() {
+  const s = Game.state;
+  if (s.gameOver) return;
+  s.round++;
+  s.turn = 'player';
+  addLog('system', `第 ${s.round} 回合开始`);
+  render();
+}
+
+// ============ 浮字动画 ============
+function floatDmg(x, y, dmg, color) {
+  const board = document.getElementById('board');
+  const cell = board.children[y * BOARD_W + x];
+  if (!cell) return;
+  const f = document.createElement('div');
+  f.className = 'float-text';
+  f.style.color = color;
+  f.style.left = '50%';
+  f.style.top = '50%';
+  f.style.transform = 'translate(-50%, -50%)';
+  f.textContent = `-${dmg}`;
+  cell.appendChild(f);
+  setTimeout(() => f.remove(), 1200);
+}
+
+// ============ 菜单控制 ============
+Game.selectFaction = function(btn, f) {
+  Game.playerFaction = f;
+  document.querySelectorAll('[data-faction]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+};
+Game.selectDiff = function(btn, d) {
+  Game.difficulty = d;
+  document.querySelectorAll('[data-diff]').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('diff-desc').textContent =
+    d === 1 ? '简单：AI 随机出牌 + 贪心攻击' :
+    d === 2 ? '普通：AI 评估威胁值，优先高性价比' :
+              '困难：AI 启发式评估，攻防兼顾';
+};
+Game.showMenu = function() {
+  document.getElementById('menu-modal').classList.remove('hidden');
+};
+Game.start = function() {
+  document.getElementById('menu-modal').classList.add('hidden');
+  document.getElementById('result-modal').classList.add('hidden');
+  newGame();
+};
+Game.restart = function() {
+  document.getElementById('result-modal').classList.add('hidden');
+  newGame();
+};
+Game.endTurn = endTurn;
+Game.toggleLog = function() {
+  const log = document.getElementById('log');
+  log.classList.toggle('hidden');
+};
+
+// ============ 启动 ============
+window.addEventListener('load', () => {
+  document.getElementById('menu-modal').classList.remove('hidden');
+});
+</script>
+</body>
+</html>
